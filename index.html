@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Web Audio API :: Demo</title>
+        <style>
+            #controls{;display:none;}
+            #visualizer{padding:20px 0px;}
+            #audio{display:none;}
+			.btn_action{padding: 10px 20px; background-color: #f44336; text-decoration: none; color: #fff; letter-spacing: 0.5px; border-radius: 5px; transition: all 0.5s;}
+			.btn_action:hover{background-color: #f00; color: #fff; transition: all 0.5s;}
+        </style>
+    </head>
+    <body>
+		<div>
+			<input type="file" id="upload" accept="audio/*" />
+		</div>
+        <audio id="audio" controls>
+          <source src="" id="src" />
+        </audio>
+        <canvas id="visualizer" width="640" height="100"></canvas>
+        <div id="controls">
+            <a href="javascript:void(0);" id="play_btn" class="btn_action">Play</a>
+            <a href="javascript:void(0);" id="pause_btn" class="btn_action">Pause</a>
+            <a href="javascript:void(0);" onclick="" id="download_btn" class="btn_action">Download</a>
+        </div>
+        <script>
+        document.getElementById("upload").addEventListener("change", handleFiles, false);
+        document.getElementById("play_btn").addEventListener("click", play_music, false);
+        document.getElementById("pause_btn").addEventListener("click", pause_music, false);
+        function play_music(e){
+            document.getElementById("audio").play();
+        }
+        function pause_music(e){
+            document.getElementById("audio").pause();
+        }
+        function handleFiles(event) {
+            var files = event.target.files;
+        	var tempurl = URL.createObjectURL(files[0]);
+        	document.getElementById("src").setAttribute("src", tempurl);
+        	document.getElementById("download_btn").setAttribute("onclick", "saveAs('"+tempurl+"')");
+        	document.getElementById("controls").style.display = 'block';
+            document.getElementById("audio").load();
+        	let audio = document.getElementById("audio");
+        	var ctx = new (window.AudioContext || window.webkitAudioContext)();
+            let sourceNode = ctx.createMediaElementSource(audio);
+            let analyser = ctx.createAnalyser();
+            analyser.smoothingTimeConstant = 0.6;
+            analyser.fftSize = 512; // frequency sample size 
+            let frequencyData = new Uint8Array(analyser.frequencyBinCount);
+            sourceNode.connect(analyser);
+            sourceNode.connect(ctx.destination);
+            //audio.play();
+        	renderFrame();
+            function renderFrame() {
+        		var canvas = document.querySelector('#visualizer');
+        		var canvasCtx = canvas.getContext("2d");
+        		canvas.setAttribute('width',640);
+        		WIDTH = canvas.width;
+        		HEIGHT = canvas.height;
+        		var bufferLengthAlt = analyser.frequencyBinCount;
+        		<!-- console.log(bufferLengthAlt); -->
+        		<!-- var dataArrayAlt = new Uint8Array(bufferLengthAlt); -->
+        		canvasCtx.clearRect(0, 0, WIDTH, HEIGHT);
+        		var drawAlt = function() {
+        			drawVisual = requestAnimationFrame(drawAlt);
+        			analyser.getByteFrequencyData(frequencyData);
+        			canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+        			canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
+        			var barWidth = (WIDTH / bufferLengthAlt) * 2.5;
+        			var barHeight;
+        			var x = 0;
+        			for(var i = 0; i < bufferLengthAlt; i++) {
+        			  barHeight = frequencyData[i];
+        			  canvasCtx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
+        			  canvasCtx.fillRect(x,HEIGHT-barHeight/2,barWidth,barHeight/2);
+        			  x += barWidth + 1;
+        			}
+        		};
+        		drawAlt();
+            }
+        }
+        function saveAs(url) {    
+          var filename = url.substring(url.lastIndexOf("/") + 1).split("?")[0];
+          var xhr = new XMLHttpRequest();
+          xhr.responseType = 'blob';
+          xhr.onload = function() {
+            var a = document.createElement('a');
+            a.href = window.URL.createObjectURL(xhr.response);
+            a.download = filename; 
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            delete a;
+          };
+          xhr.open('GET', url);
+          xhr.send();
+        }
+        </script>
+    </body>
+</html>
